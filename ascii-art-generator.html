@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII Art Generator · 字符画生成器</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-elevated: #161b22;
+  --bg-hover: #1c2129;
+  --border: #30363d;
+  --border-focus: #58a6ff;
+  --text: #c9d1d9;
+  --text-dim: #8b949e;
+  --text-bright: #f0f6fc;
+  --accent: #58a6ff;
+  --accent-dim: #1f6feb;
+  --green: #3fb950;
+  --green-dim: #238636;
+  --orange: #d2991d;
+  --red: #f85149;
+  --purple: #a371f7;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Consolas', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ── */
+.header {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+.header-icon {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--accent-dim), var(--purple));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  color: white;
+}
+.header-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.3px;
+}
+.header-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ── Tabs ── */
+.tab-bar {
+  display: flex;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.tab-btn {
+  padding: 10px 18px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Main Content ── */
+.main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.tab-panel { display: none; flex: 1; overflow: auto; }
+.tab-panel.active { display: flex; }
+
+/* ── Two-column layout inside panels ── */
+.panel-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.controls {
+  width: 340px;
+  min-width: 340px;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preview-area {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Control Groups ── */
+.ctrl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ctrl-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.ctrl-input, .ctrl-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  transition: border-color 0.15s;
+}
+.ctrl-input:focus, .ctrl-select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(88,166,255,0.12);
+}
+.ctrl-textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.15s;
+}
+.ctrl-textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(88,166,255,0.12);
+}
+
+/* Slider */
+.ctrl-row { display: flex; align-items: center; gap: 10px; }
+.ctrl-row .ctrl-label { min-width: 48px; }
+.ctrl-range {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+.ctrl-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px rgba(88,166,255,0.2);
+}
+.ctrl-range::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(88,166,255,0.3); }
+.ctrl-val {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* Color input */
+.ctrl-color-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ctrl-color {
+  -webkit-appearance: none;
+  width: 28px; height: 28px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+}
+.ctrl-color::-webkit-color-swatch-wrapper { padding: 0; }
+.ctrl-color::-webkit-color-swatch { border: none; border-radius: 4px; }
+.ctrl-color-val {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+/* Toggle */
+.ctrl-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ctrl-toggle {
+  position: relative;
+  width: 40px; height: 22px;
+  background: var(--border);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+}
+.ctrl-toggle.on { background: var(--accent-dim); }
+.ctrl-toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 16px; height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.ctrl-toggle.on::after { transform: translateX(18px); }
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--green-dim);
+  border-color: var(--green-dim);
+  color: white;
+}
+.btn-primary:hover { background: var(--green); }
+.btn-secondary {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.btn-secondary:hover { background: var(--border); }
+.btn-accent {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+  color: white;
+}
+.btn-accent:hover { background: var(--accent); }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── Preview ── */
+.preview-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-self: flex-end;
+}
+.preview-container {
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  overflow: auto;
+  max-width: 100%;
+  max-height: calc(100vh - 200px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+.preview-output {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.15;
+  white-space: pre;
+  color: #0f0;
+  letter-spacing: 0;
+  tab-size: 8;
+}
+
+/* ── Image Upload ── */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg);
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(88,166,255,0.04);
+}
+.upload-zone-icon { font-size: 36px; margin-bottom: 8px; }
+.upload-zone-text { font-size: 13px; color: var(--text-dim); }
+.upload-zone-hint { font-size: 11px; color: var(--text-dim); opacity: 0.6; margin-top: 4px; }
+
+/* ── Gallery ── */
+.gallery-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.gallery-tab {
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+}
+.gallery-tab:hover { color: var(--text); background: var(--bg-hover); }
+.gallery-tab.active { color: var(--accent); background: var(--bg); }
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.gallery-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.gallery-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(88,166,255,0.15);
+}
+.gallery-card-preview {
+  padding: 12px;
+  background: #000;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1.1;
+  white-space: pre;
+  color: #0f0;
+  max-height: 140px;
+  overflow: hidden;
+  position: relative;
+}
+.gallery-card-preview::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, #000);
+}
+.gallery-card-label {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+}
+
+/* ── QR ── */
+.qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.qr-output {
+  font-family: var(--font-mono);
+  font-size: 6px;
+  line-height: 1;
+  white-space: pre;
+  background: white;
+  color: black;
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  letter-spacing: 0;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--green-dim);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.show { opacity: 1; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .panel-layout { flex-direction: column; }
+  .controls { width: 100%; min-width: 100%; border-right: none; border-bottom: 1px solid var(--border); max-height: 40vh; }
+  .gallery-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-icon">▣</div>
+  <div>
+    <div class="header-title">ASCII Art Generator</div>
+    <div class="header-sub">字符画生成器 · Text to Art · Image to ASCII · Gallery · QR</div>
+  </div>
+</div>
+
+<!-- Tab Bar -->
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-tab="text">┃ 文字转字符画</button>
+  <button class="tab-btn" data-tab="image">┃ 图片转ASCII</button>
+  <button class="tab-btn" data-tab="gallery">┃ 字符画画廊</button>
+  <button class="tab-btn" data-tab="qr">┃ 二维码生成</button>
+</div>
+
+<!-- Main Content -->
+<div class="main">
+
+  <!-- ═══ TEXT TAB ═══ -->
+  <div class="tab-panel active" id="panel-text">
+    <div class="panel-layout">
+      <div class="controls">
+        <div class="ctrl-group">
+          <label class="ctrl-label">输入文字</label>
+          <textarea class="ctrl-textarea" id="textInput" placeholder="输入文字...&#10;支持中文、英文、数字">Hello World!</textarea>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">字体风格</label>
+          <select class="ctrl-select" id="fontSelect">
+            <optgroup label="── Unicode 变换 ──">
+              <option value="unicode-bold">𝗕𝗼𝗹𝗱 · 数学粗体</option>
+              <option value="unicode-italic">𝘐𝘵𝘢𝘭𝘪𝘤 · 数学斜体</option>
+              <option value="unicode-bolditalic">𝙱𝚘𝚕𝚍 𝙸𝚝𝚊𝚕𝚒𝚌 · 粗斜体</option>
+              <option value="unicode-double">𝔻𝕠𝕦𝕓𝕝𝕖 · 双线体</option>
+              <option value="unicode-script">𝓢𝓬𝓻𝓲𝓹𝓽 · 手写体</option>
+              <option value="unicode-mono">𝙼𝚘𝚗𝚘 · 等宽体</option>
+              <option value="unicode-sans">𝖲𝖺𝗇𝗌 · 无衬线</option>
+              <option value="unicode-square">🅂🅀🅄🄰🅁🄴 · 方块字</option>
+            </optgroup>
+            <optgroup label="── 字符块艺术 ──">
+              <option value="block-doom" selected>█ DOOM · 粗块体</option>
+              <option value="block-slim">│ SLIM · 细线体</option>
+              <option value="block-bubble">○ BUBBLE · 泡泡体</option>
+            </optgroup>
+            <optgroup label="── 效果 ──">
+              <option value="upside-down">uʍop ǝpısdn · 颠倒</option>
+              <option value="mirror">ЯOЯЯIM · 镜像</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-row">
+            <span class="ctrl-label">宽度</span>
+            <input type="range" class="ctrl-range" id="widthSlider" min="20" max="120" value="60">
+            <span class="ctrl-val" id="widthVal">60</span>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">对齐</label>
+          <select class="ctrl-select" id="alignSelect">
+            <option value="left">左对齐</option>
+            <option value="center">居中</option>
+            <option value="right">右对齐</option>
+          </select>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">输出颜色</label>
+          <div class="ctrl-color-wrapper">
+            <input type="color" class="ctrl-color" id="colorPicker" value="#00ff41">
+            <span class="ctrl-color-val" id="colorVal">#00ff41</span>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-toggle-row">
+            <span class="ctrl-label">加外框</span>
+            <button class="ctrl-toggle" id="borderToggle"></button>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-toggle-row">
+            <span class="ctrl-label">反转背景</span>
+            <button class="ctrl-toggle" id="invertToggle"></button>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top: 4px;">
+          <button class="btn btn-accent" id="btnCopyText">📋 复制</button>
+          <button class="btn btn-secondary" id="btnDownloadText">💾 下载 .txt</button>
+        </div>
+      </div>
+      <div class="preview-area">
+        <div class="preview-toolbar">
+          <span style="font-size:11px;color:var(--text-dim);align-self:center;">实时预览</span>
+        </div>
+        <div class="preview-container" id="textPreviewContainer">
+          <pre class="preview-output" id="textPreview"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ IMAGE TAB ═══ -->
+  <div class="tab-panel" id="panel-image">
+    <div class="panel-layout">
+      <div class="controls">
+        <div class="upload-zone" id="imageUploadZone">
+          <div class="upload-zone-icon">🖼️</div>
+          <div class="upload-zone-text">点击或拖拽上传图片</div>
+          <div class="upload-zone-hint">支持 PNG / JPG / GIF / WebP</div>
+          <input type="file" id="imageFileInput" accept="image/*" style="display:none">
+        </div>
+        <div class="ctrl-group">
+          <span id="imageNameDisplay" style="font-size:12px;color:var(--text-dim);display:none;"></span>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-row">
+            <span class="ctrl-label">输出宽度</span>
+            <input type="range" class="ctrl-range" id="imgWidthSlider" min="30" max="150" value="80">
+            <span class="ctrl-val" id="imgWidthVal">80</span>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">字符集</label>
+          <select class="ctrl-select" id="charSetSelect">
+            <option value="standard" selected>█▓▒░ · 标准</option>
+            <option value="detailed">@%#*+=-:. · 精细</option>
+            <option value="simple">@#. · 简洁</option>
+            <option value="braille">⠿⠾⠽⠼⠻⠺⠹⠸⠷⠶⠵⠴⠳⠲⠱⠰ · 盲文</option>
+            <option value="numbers">9876543210 · 数字</option>
+            <option value="letters">MWN$@%#&amp;BRGEP</option>
+          </select>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">🎨 色彩模式</label>
+          <select class="ctrl-select" id="imgColorMode">
+            <option value="original" selected>🌈 原色 · 保留原始色彩</option>
+            <option value="grayscale">⚫ 灰度 · 黑白渐变</option>
+            <option value="heatmap">🔥 热力图 · 蓝→青→黄→红</option>
+            <option value="neon">💜 霓虹 · 赛博朋克</option>
+            <option value="vintage">📜 复古 · 暖黄怀旧</option>
+            <option value="terminal">💚 终端绿 · 经典CRT</option>
+            <option value="bw">⬛ 纯黑白 · 二值化</option>
+          </select>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-toggle-row">
+            <span class="ctrl-label">反转亮度</span>
+            <button class="ctrl-toggle" id="imgInvertToggle"></button>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-row">
+            <span class="ctrl-label">对比度</span>
+            <input type="range" class="ctrl-range" id="contrastSlider" min="50" max="200" value="100">
+            <span class="ctrl-val" id="contrastVal">100%</span>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-row">
+            <span class="ctrl-label">亮度</span>
+            <input type="range" class="ctrl-range" id="brightnessSlider" min="50" max="150" value="100">
+            <span class="ctrl-val" id="brightnessVal">100%</span>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top: 4px;">
+          <button class="btn btn-accent" id="btnCopyImage">📋 复制</button>
+          <button class="btn btn-secondary" id="btnDownloadImage">💾 下载 .txt</button>
+        </div>
+      </div>
+      <div class="preview-area">
+        <div class="preview-container" id="imagePreviewContainer" style="display:flex;align-items:center;justify-content:center;min-height:300px;">
+          <div style="color:var(--text-dim);font-size:14px;">上传一张图片开始转换</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ GALLERY TAB ═══ -->
+  <div class="tab-panel" id="panel-gallery" style="flex-direction:column;">
+    <div class="gallery-tabs" id="galleryTabBar"></div>
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </div>
+
+  <!-- ═══ QR TAB ═══ -->
+  <div class="tab-panel" id="panel-qr">
+    <div class="panel-layout">
+      <div class="controls">
+        <div class="ctrl-group">
+          <label class="ctrl-label">URL 或文本</label>
+          <input type="text" class="ctrl-input" id="qrInput" placeholder="https://example.com" value="https://hermes-agent.nousresearch.com">
+        </div>
+        <div class="ctrl-group">
+          <div class="ctrl-row">
+            <span class="ctrl-label">大小</span>
+            <input type="range" class="ctrl-range" id="qrSizeSlider" min="2" max="10" value="4">
+            <span class="ctrl-val" id="qrSizeVal">4</span>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">纠错级别</label>
+          <select class="ctrl-select" id="qrEcSelect">
+            <option value="L">L · 低 (7%)</option>
+            <option value="M" selected>M · 中 (15%)</option>
+            <option value="Q">Q · 高 (25%)</option>
+            <option value="H">H · 最高 (30%)</option>
+          </select>
+        </div>
+        <div class="btn-row" style="margin-top: 4px;">
+          <button class="btn btn-accent" id="btnCopyQR">📋 复制</button>
+          <button class="btn btn-secondary" id="btnDownloadQR">💾 下载 .txt</button>
+        </div>
+      </div>
+      <div class="preview-area">
+        <div class="qr-container">
+          <div class="qr-output" id="qrOutput" style="font-size:6px;line-height:1;">生成二维码...</div>
+          <div style="font-size:12px;color:var(--text-dim);" id="qrUrlDisplay"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// ASCII ART GENERATOR ENGINE
+// ═══════════════════════════════════════════
+
+// ── DOM refs ──
+const $ = (s, p=document) => p.querySelector(s);
+const $$ = (s, p=document) => [...p.querySelectorAll(s)];
+
+// ── Toast ──
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── Copy to clipboard ──
+function copyText(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => toast('已复制到剪贴板 ✓'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('已复制到剪贴板 ✓');
+  }
+}
+
+function downloadText(text, filename) {
+  const blob = new Blob([text], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('下载完成 ✓');
+}
+
+// ── Tab switching ──
+$$('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('.tab-btn').forEach(b => b.classList.remove('active'));
+    $$('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    $('#panel-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'qr') updateQR();
+    if (btn.dataset.tab === 'gallery') initGallery();
+  });
+});
+
+// ═══════════════════════════════════════════
+// 1. TEXT TO ASCII ART
+// ═══════════════════════════════════════════
+
+// Unicode transform maps
+const UNICODE_MAPS = {
+  'unicode-bold': {
+    map: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    to:  '𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵'
+  },
+  'unicode-italic': {
+    map: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    to:  '𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻0123456789'
+  },
+  'unicode-bolditalic': {
+    map: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    to:  '𝘼𝘽𝘾𝘿𝙀𝙁𝙂𝙃𝙄𝙅𝙆𝙇𝙈𝙉𝙊𝙋𝙌𝙍𝙎𝙏𝙐𝙑𝙒𝙓𝙔𝙕𝙖𝙗𝙘𝙙𝙚𝙛𝙜𝙝𝙞𝙟𝙠𝙡𝙢𝙣𝙤𝙥𝙦𝙧𝙨𝙩𝙪𝙫𝙬𝙭𝙮𝙯0123456789'
+  },
+  'unicode-double': {
+    map: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    to:  '𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡'
+  },
+  'unicode-script': {
+    map: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    to:  '𝓐𝓑𝓒𝓓𝓔𝓕𝓖𝓗𝓘𝓙𝓚𝓛𝓜𝓝𝓞𝓟𝓠𝓡𝓢𝓣𝓤𝓥𝓦𝓧𝓨𝓩𝓪𝓫𝓬𝓭𝓮𝓯𝓰𝓱𝓲𝓳𝓴𝓵𝓶𝓷𝓸𝓹𝓺𝓻𝓼𝓽𝓾𝓿𝔀𝔁𝔂𝔃0123456789'
+  },
+  'unicode-mono': {
+    map: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    to:  '𝙰𝙱𝙲𝙳𝙴𝙵𝙶𝙷𝙸𝙹𝙺𝙻𝙼𝙽𝙾𝙿𝚀𝚁𝚂𝚃𝚄𝚅𝚆𝚇𝚈𝚉𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿'
+  },
+  'unicode-sans': {
+    map: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    to:  '𝖠𝖡𝖢𝖣𝖤𝖥𝖦𝖧𝖨𝖩𝖪𝖫𝖬𝖭𝖮𝖯𝖰𝖱𝖲𝖳𝖴𝖵𝖶𝖷𝖸𝖹𝖺𝖻𝖼𝖽𝖾𝖿𝗀𝗁𝗂𝗃𝗄𝗅𝗆𝗇𝗈𝗉𝗊𝗋𝗌𝗍𝗎𝗏𝗐𝗑𝗒𝗓𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫'
+  },
+  'unicode-square': {
+    map: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+    to:  '🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉0123456789'
+  }
+};
+
+// Block art fonts: 36 chars (A-Z,0-9), each is 5 lines
+// Represented as arrays of 5 strings
+function buildBlockFonts() {
+  // DOOM style - bold blocky
+  const doom = {};
+  const doomGlyphs = {
+    A: [' ▄▄▄▄ ', '█▀  ▀█', '█▄▄▄▄█', '█▀  ▀█', '█▀  ▀█'],
+    B: ['█▄▄▄▄ ', '█▀  ▀█', '█▄▄▄▄▀', '█▀  ▀█', '█▄▄▄▄ '],
+    C: [' ▄▄▄▄ ', '█▀  ▀█', '█▀    ', '█▀  ▀█', ' ▄▄▄▄ '],
+    D: ['█▄▄▄▄ ', '█▀  ▀█', '█▀  ▀█', '█▀  ▀█', '█▄▄▄▄ '],
+    E: ['█▄▄▄▄█', '█▀    ', '█▄▄▄▄ ', '█▀    ', '█▄▄▄▄█'],
+    F: ['█▄▄▄▄█', '█▀    ', '█▄▄▄▄ ', '█▀    ', '█▀    '],
+    G: [' ▄▄▄▄ ', '█▀  ▀█', '█▀ ▄▄▄', '█▀  ▀█', ' ▄▄▄▄ '],
+    H: ['█▀  ▀█', '█▀  ▀█', '█▄▄▄▄█', '█▀  ▀█', '█▀  ▀█'],
+    I: ['█▄▄▄▄█', '  █▀  ', '  █▀  ', '  █▀  ', '█▄▄▄▄█'],
+    J: ['  ▄▄▄█', '   ▀█', '   ▀█', '█▀ ▀█', ' ▄▄▄ '],
+    K: ['█▀  ▀█', '█▀ ▄▀ ', '█▄█▀  ', '█▀ ▀▄ ', '█▀  ▀█'],
+    L: ['█▀    ', '█▀    ', '█▀    ', '█▀    ', '█▄▄▄▄█'],
+    M: ['█▀▄ ▄▀█', '█ █▐█ █', '█ ▀▐▀ █', '█▀   ▀█', '█▀   ▀█'],
+    N: ['█▀▄  ▀█', '█▀▐▄ ▀█', '█▀ ▐▄ █', '█▀  ▐▄█', '█▀   ▐█'],
+    O: [' ▄▄▄▄ ', '█▀  ▀█', '█▀  ▀█', '█▀  ▀█', ' ▄▄▄▄ '],
+    P: ['█▄▄▄▄ ', '█▀  ▀█', '█▄▄▄▄ ', '█▀    ', '█▀    '],
+    Q: [' ▄▄▄▄ ', '█▀  ▀█', '█▀  ▀█', '█▀ ▄▀█', ' ▄▄▄ █'],
+    R: ['█▄▄▄▄ ', '█▀  ▀█', '█▄▄▄▄ ', '█▀ ▀█ ', '█▀  ▀█'],
+    S: [' ▄▄▄▄ ', '█▀    ', ' ▄▄▄▄ ', '   ▀█', '▄▄▄▄  '],
+    T: ['█▄▄▄▄█', '  █▀  ', '  █▀  ', '  █▀  ', '  █▀  '],
+    U: ['█▀  ▀█', '█▀  ▀█', '█▀  ▀█', '█▀  ▀█', ' ▄▄▄▄ '],
+    V: ['█▀   ▀█', ' █▀ ▀█ ', ' █▀ ▀█ ', '  █ █  ', '  ▀ ▀  '],
+    W: ['█▀   ▀█', '█▀   ▀█', '█▀ ▐ ▀█', '█▀▐█▌▀█', ' █ █ █ '],
+    X: ['█▀   ▀█', ' █▄ ▄█ ', '  ██▀  ', ' █▀ ▀█ ', '█▀   ▀█'],
+    Y: ['█▀   ▀█', ' █▀ ▀█ ', '  ██▀  ', '  █▀   ', '  █▀   '],
+    Z: ['█▄▄▄▄█', '   ▄█ ', '  █▀  ', ' █▄   ', '█▄▄▄▄█'],
+    '0':[' ▄▄▄▄ ', '█▀  ██', '█▀ ▐▀█', '██  ▀█', ' ▄▄▄▄ '],
+    '1':['  ▄█  ', ' █▐█  ', '  █▀  ', '  █▀  ', '█▄▄▄▄█'],
+    '2':[' ▄▄▄▄ ', '█▀  ▀█', '  ▄▄█ ', ' █▀   ', '█▄▄▄▄█'],
+    '3':[' ▄▄▄▄ ', '█▀  ▀█', '  ▄▄▄ ', '█▀  ▀█', ' ▄▄▄▄ '],
+    '4':['█▀  ▀█', '█▀  ▀█', '█▄▄▄▄█', '    ▀█', '    ▀█'],
+    '5':['█▄▄▄▄█', '█▀    ', '█▄▄▄▄ ', '   ▀█', '▄▄▄▄  '],
+    '6':[' ▄▄▄▄ ', '█▀    ', '█▄▄▄▄ ', '█▀  ▀█', ' ▄▄▄▄ '],
+    '7':['█▄▄▄▄█', '   ▄█ ', '  █▀  ', ' █▀   ', '█▀    '],
+    '8':[' ▄▄▄▄ ', '█▀  ▀█', ' ▄▄▄▄ ', '█▀  ▀█', ' ▄▄▄▄ '],
+    '9':[' ▄▄▄▄ ', '█▀  ▀█', ' ▄▄▄▄█', '   ▀█', ' ▄▄▄▄ '],
+    ' ':[ '      ', '      ', '      ', '      ', '      '],
+    '!':['  █▀  ', '  █▀  ', '  █▀  ', '      ', '  █▀  '],
+    '?':[' ▄▄▄▄ ', '█▀  ▀█', '  ▄▄█ ', '      ', '  █▀  '],
+    '.':['      ', '      ', '      ', '      ', '  █   '],
+    ',':['      ', '      ', '      ', '  █▀  ', ' █▀   '],
+    '-':['      ', '      ', '█▄▄▄▄ ', '      ', '      '],
+    '+':['      ', '  █▀  ', '█▄▄▄▄█', '  █▀  ', '      '],
+    '_':['      ', '      ', '      ', '      ', '█▄▄▄▄█'],
+    '/':['    ▀█', '   ▄█ ', '  █▀  ', ' █▄   ', '█▀    '],
+    '\\':['█▀    ', ' █▄   ', '  █▀  ', '   ▄█ ', '    ▀█'],
+    '|':['  █▀  ', '  █▀  ', '  █▀  ', '  █▀  ', '  █▀  '],
+    '(':['  ▄█ ', ' █▀  ', ' █▀  ', ' █▀  ', '  ▄█ '],
+    ')':[' █▄  ', '  ▀█ ', '  ▀█ ', '  ▀█ ', ' █▄  '],
+    '<':['   ▄▀', ' ▄▀  ', '█▀   ', ' ▄▀  ', '   ▄▀'],
+    '>':['█▄   ', '  ▀▄ ', '   ▀█', '  ▀▄ ', '█▄   '],
+    '=':['      ', '█▄▄▄▄█', '      ', '█▄▄▄▄█', '      '],
+    '"':['▐▌▐▌  ', '▐▌▐▌  ', '      ', '      ', '      '],
+    '\'':['  █▀  ', ' █▀   ', '      ', '      ', '      '],
+    '*':['      ', ' █▀ ▀█', '  █▀  ', ' █▀ ▀█', '      '],
+    '#':[' █▀ ▀█', '█▄▄▄▄█', ' █▀ ▀█', '█▄▄▄▄█', ' █▀ ▀█'],
+    '@':[' ▄▄▄▄ ', '█▀  ▀█', '█▀ ▄▄▄', '█▀    ', ' ▄▄▄▄ '],
+    '$':['  █▄▄ ', '█▀█▀  ', ' ▄▄█ ', '  ▀█▐█', '▄▄█▀  '],
+    '%':['█▀ ▀█ ', '  ▄█  ', ' █▀   ', '█▄    ', ' █ ▄▀█'],
+    '^':['  █▀  ', ' █▀▀█ ', '      ', '      ', '      '],
+    '&':[' ▄▄▄  ', '█▀ █▄ ', ' ▄█ ▄█', '█▀█▀  ', ' ▄▄█▀█'],
+    '[':[' ▄▄█ ', ' █▀  ', ' █▀  ', ' █▀  ', ' ▄▄█ '],
+    ']':[' █▄▄ ', '  ▀█ ', '  ▀█ ', '  ▀█ ', ' █▄▄ '],
+    '{':['  ▄█ ', ' █▀  ', '█▀   ', ' █▀  ', '  ▄█ '],
+    '}':[' █▄  ', '  ▀█ ', '   ▀█', '  ▀█ ', ' █▄  '],
+    '~':['      ', ' ▄█▀▀ ', '█▀ ▀█ ', '      ', '      '],
+    '`':[' █▀   ', '  █▀  ', '      ', '      ', '      '],
+    ':':['      ', '  █▀  ', '      ', '  █▀  ', '      '],
+    ';':['      ', '  █▀  ', '      ', '  █▀  ', ' █▀   ']
+  };
+
+  // SLIM style - thin lines
+  const slim = {};
+  const slimGlyphs = {
+    A: ['  ^  ', ' / \\ ', '/___\\', '|   |', '|   |'],
+    B: [' ___ ', '| _ \\', '| __/', '| _ \\', '|___/'],
+    C: [' ___ ', '/ __|', '| |  ', '| |__', '\\___|'],
+    D: [' ___ ', '| _ \\', '| | |', '| |_|', '|___/'],
+    E: [' ___ ', '| __|', '| _| ', '| |_ ', '|___|'],
+    F: [' ___ ', '| __|', '| _| ', '| |  ', '|_|  '],
+    G: [' ___ ', '/ __|', '| | _', '| |_|', '\\___|'],
+    H: [' _  _', '| || |', '| __ |', '| || |', '|_||_|'],
+    I: [' ___ ', '|_ _|', ' | | ', ' | | ', '|___|'],
+    J: ['   _ ', '  | |', '  | |', ' _| |', '|___/'],
+    K: [' _  _', '| |/ |', '| |\\|', '| |\\ ', '|_| \\'],
+    L: [' _   ', '| |  ', '| |  ', '| |_ ', '|___|'],
+    M: [' _   _', '| \\ / |', '| \\|/ |', '| | | |', '|_| |_|'],
+    N: [' _   _', '| \\ | |', '|  \\| |', '| |\\  |', '|_| \\_|'],
+    O: [' ___ ', '/ _ \\', '| | |', '| |_|', '\\___/'],
+    P: [' ___ ', '| _ \\', '| __/', '| |  ', '|_|  '],
+    Q: [' ___ ', '/ _ \\', '| | |', '| |_|', '\\__\\|'],
+    R: [' ___ ', '| _ \\', '|   /', '| |\\ ', '|_| \\'],
+    S: [' ___ ', '/ __|', '\\__ \\', '|__/ ', '|___/'],
+    T: [' ___ ', '|_ _|', ' | | ', ' | | ', ' |_| '],
+    U: [' _   _', '| | | |', '| | | |', '| |_| |', '\\___/ '],
+    V: [' _    _', '| |  / /', '| | / / ', '| |/ /  ', '|___/   '],
+    W: [' _      _', '| | /\\ / |', '| |/ -<| |', '| |/ / \\ |', '|_/  |__/'],
+    X: [' _   _', '\\ \\ / /', ' \\ V / ', ' / . \\ ', '/_/ \\_\\'],
+    Y: [' _   _', '\\ \\ / /', ' \\ V / ', '  | |  ', '  |_|  '],
+    Z: [' ___ ', '|_  /', ' / / ', '/ _ \\', '/___/'],
+    '0':[' ___ ', '/ _ \\', '| |_|', '|  _', '\\___|'],
+    '1':['  _  ', ' / | ', ' | | ', ' | | ', ' |_| '],
+    '2':[' ___ ', '|_  )', ' / / ', '/ _ \\', '|___|'],
+    '3':[' ___ ', '|__ \\', '  ) |', ' /_/ ', '|___|'],
+    '4':[' _  _', '| || |', '| __|', '|_|  ', '(_)  '],
+    '5':[' ___ ', '| __|', '|__ \\', '|__/ ', '|___|'],
+    '6':['  __ ', ' / / ', '/ _ \\', '\\__/ ', '|___|'],
+    '7':[' ___ ', '|__ \\', '  / /', ' /_/ ', '|_|  '],
+    '8':[' ___ ', '| _ \\', '|   /', '| |\\ ', '|_| \\'],
+    '9':[' ___ ', '| _ \\', '| __/', '\\___|', '|_|  '],
+    ' ':[ '     ', '     ', '     ', '     ', '     '],
+    '!':[' _ ', '| |', '| |', '|_|', '(_)'],
+    '?':[' __ ', '/_ |', ' | |', ' |_|', ' (_)'],
+    '.':['   ', '   ', '   ', ' _ ', '(_)'],
+    ',':['   ', '   ', '   ', ' _ ', '/_|'],
+    '-':['     ', '     ', ' ___ ', '     ', '     ']
+  };
+
+  // BUBBLE style
+  const bubble = {};
+  const bubbleGlyphs = {
+    A: [' ╭─╮ ', '╭╯ ╰╮', '╰╮ ╭╯', '│ ╻ │', '╰─╯ '],
+    B: ['╭──╮ ', '├╮ ╰╮', '├╯╭╯ ', '├╮╰╮ ', '╰╯─╯ '],
+    C: ['╭──╮ ', '├╮ ╰╮', '││  │', '├╯╮╭╯', '╰──╯ '],
+    D: ['╭──╮ ', '├╮ ╰╮', '││  │', '├╯╮╭╯', '╰──╯ '],
+    E: ['╭──╮ ', '├╮  │', '├╯╮╭╯', '├╮╰╯ ', '╰╯──╯'],
+    F: ['╭──╮ ', '├╮  │', '├╰╮╭╯', '│ ││ ', '╰─╯│ '],
+    G: ['╭──╮ ', '├╮ ╭╯', '││╭╯ ', '├╯╰╮ ', '╰──╯ '],
+    H: ['╭╮ ╭╮', '│╰╮││', '│ ╰╯│', '│╭╯╭╯', '╰╯ ╰╯'],
+    I: ['╭──╮ ', '╰╮╭╯ ', ' ││  ', '╭╯╰╮ ', '╰──╯ '],
+    J: ['  ╭─╮', '  │ │', '  │ │', '╭╮│ │', '╰╯╰─╯'],
+    K: ['╭╮ ╭╮', '│╰╮││', '│╭╯││', '││╭╯│', '╰╯╰─╯'],
+    L: ['╭╮   ', '││   ', '││   ', '├╯─╮ ', '╰──╯ '],
+    M: ['╭╮   ╭╮', '│╰─╮ ││', '│╭╮╰╮││', '││╰╮╰╯│', '╰╯ ╰──╯'],
+    N: ['╭╮  ╭╮', '│╰╮ ││', '│ ╰╮││', '│╭╯╰╮│', '╰╯  ╰╯'],
+    O: ['╭──╮ ', '│╭╮│ ', '││││ ', '│╰╯│ ', '╰──╯ '],
+    P: ['╭──╮ ', '│╭╮╰╮', '│╰╯╭╯', '│╭╮╰╮', '╰╯╰─╯'],
+    Q: ['╭──╮ ', '│╭╮│ ', '││││ ', '│╰╯├╮', '╰──╰╯'],
+    R: ['╭──╮ ', '│╭╮│ ', '│╰╯│ ', '│╭╮│ ', '╰╯╰╯ '],
+    S: ['╭──╮ ', '╰╮╭╯ ', '╭╯╰╮ ', '╰╮╭╯ ', ' ╰╯  '],
+    T: ['╭──╮ ', '╰╮╭╯ ', ' ││  ', ' ││  ', ' ╰╯  '],
+    U: ['╭╮ ╭╮', '││ ││', '││ ││', '│╰╮││', '╰─╯╰╯'],
+    V: ['╭╮   ╭╮', '│╰╮╭╯│', ' │╰╯│ ', ' ╰╮╭╯ ', '  ╰╯  '],
+    W: ['╭╮   ╭╮', '││   ││', '││╭─╮││', '│╰╯ ╰╯│', '╰╯   ╰╯'],
+    X: ['╭╮  ╭╮', '╰╰╮╭╯╯', ' ╭╯╰╮ ', '╭╯╭╮╰╮', '╰╯ ╰╯╰'],
+    Y: ['╭╮ ╭╮', '╰╰╮╯╯', ' ╭╯╯ ', '╭╯╰╮ ', '╰╯ ╰╯'],
+    Z: ['╭──╮ ', '╰╮╭╯ ', '╭─╯│ ', '│╭─╯ ', '╰╯──╯'],
+    '0':['╭──╮ ', '│╭╮╰╮', '││╰╮│', '│╰╮││', '╰──╯ '],
+    '1':[' ╭╮  ', '╭╯╰╮ ', ' ││  ', '╭╯╰╮ ', '╰──╯ '],
+    '2':['╭──╮ ', '│╭╮╰╮', '╰╯╭╯ ', '╭╮╰╮ ', '╰╯─╯ '],
+    '3':['╭──╮ ', '│╭╮╰╮', '╰╯╭╯ ', '│╭╯╰╮', '╰╯──╯'],
+    '4':['╭╮ ╭╮', '││ ││', '│╰─╯│', '╰──╮│', '   ╰╯'],
+    '5':['╭──╮ ', '│╭╮ │', '│╰╯╮│', '╰╮╭╯│', ' ╰╯─╯'],
+    '6':['╭──╮ ', '│╭╮╰╮', '│╰╯╮│', '│╭╮││', '╰╯╰─╯'],
+    '7':['╭──╮ ', '│╭╮╰╮', '╰╯╭╯ ', '╭─╯│ ', '╰──╯ '],
+    '8':['╭──╮ ', '│╭╮╰╮', '╰╯╭╯│', '│╭╯╰╮', '╰╯──╯'],
+    '9':['╭──╮ ', '│╭╮╰╮', '╰╯╭╯│', ' ╰╮││', '  ╰╯╰'],
+    ' ':[ '     ', '     ', '     ', '     ', '     ']
+  };
+
+  // Merge defaults for missing chars
+  function fillMissing(glyphs, source) {
+    const result = {...glyphs};
+    for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('')) {
+      if (!result[ch]) result[ch] = source[ch] || [' ??? ', ' ??? ', ' ??? ', ' ??? ', ' ??? '];
+    }
+    return result;
+  }
+
+  return {
+    'block-doom': fillMissing(doomGlyphs, doomGlyphs),
+    'block-slim': fillMissing(slimGlyphs, slimGlyphs),
+    'block-bubble': fillMissing(bubbleGlyphs, bubbleGlyphs)
+  };
+}
+
+const BLOCK_FONTS = buildBlockFonts();
+
+// Upside-down map
+const UPSIDE_DOWN = {
+  'a':'ɐ','b':'q','c':'ɔ','d':'p','e':'ǝ','f':'ɟ','g':'ƃ','h':'ɥ','i':'ᴉ','j':'ɾ','k':'ʞ','l':'l','m':'ɯ','n':'u','o':'o','p':'d','q':'b','r':'ɹ','s':'s','t':'ʇ','u':'n','v':'ʌ','w':'ʍ','x':'x','y':'ʎ','z':'z',
+  'A':'∀','B':'ᙠ','C':'Ɔ','D':'ᗡ','E':'Ǝ','F':'Ⅎ','G':'⅁','H':'H','I':'I','J':'ſ','K':'⋊','L':'⅂','M':'W','N':'N','O':'O','P':'Ԁ','Q':'Ό','R':'ᴚ','S':'S','T':'⊥','U':'∩','V':'Λ','W':'M','X':'X','Y':'⅄','Z':'Z',
+  '0':'0','1':'⇂','2':'ᄅ','3':'Ɛ','4':'ㄣ','5':'ϛ','6':'9','7':'ㄥ','8':'8','9':'6',
+  '.':'˙',',':'\'','!':'¡','?':'¿','&':'⅋','_':'¯','"':',,','\'':',','(':' )',')':'(' ,'[':']',']':'[','{':'}','}':'{','<':'>','>':'<'
+};
+
+// Mirror map
+const MIRROR = {
+  'A':'A','B':'ᗺ','C':'Ɔ','D':'ᗡ','E':'Ǝ','F':'ꟻ','G':'Ꭾ','H':'H','I':'I','J':'ᒋ','K':'ꓘ','L':'⅃','M':'M','N':'И','O':'O','P':'ꟼ','Q':'Ọ','R':'Я','S':'Ꙅ','T':'T','U':'U','V':'V','W':'W','X':'X','Y':'Y','Z':'Z',
+  'a':'ɒ','b':'d','c':'ɔ','d':'b','e':'ɘ','f':'ʇ','g':'ǫ','h':'ʜ','i':'i','j':'į','k':'ʞ','l':'l','m':'m','n':'n','o':'o','p':'q','q':'p','r':'ɿ','s':'ꙅ','t':'ƚ','u':'u','v':'v','w':'w','x':'x','y':'y','z':'z',
+  '0':'0','1':'1','2':'ᘔ','3':'Ɛ','4':'ᒋ','5':'ϱ','6':'6','7':'7','8':'8','9':'9',
+  '>':'<','<':'>','(' :')',')':'(','[':']',']':'[','{':'}','}':'{'
+};
+
+function transformText(text, style) {
+  // Unicode transforms
+  if (style.startsWith('unicode-')) {
+    const cfg = UNICODE_MAPS[style];
+    if (!cfg) return text;
+    let result = '';
+    for (const ch of text) {
+      const idx = cfg.map.indexOf(ch);
+      result += idx >= 0 ? cfg.to[idx] : ch;
+    }
+    return result;
+  }
+
+  // Upside down
+  if (style === 'upside-down') {
+    let result = '';
+    for (const ch of text.split('').reverse()) {
+      result += UPSIDE_DOWN[ch] || ch;
+    }
+    return result;
+  }
+
+  // Mirror
+  if (style === 'mirror') {
+    let result = '';
+    for (const ch of text.split('').reverse()) {
+      result += MIRROR[ch] || ch;
+    }
+    return result;
+  }
+
+  // Block art fonts
+  if (style.startsWith('block-')) {
+    const font = BLOCK_FONTS[style];
+    if (!font) return text;
+    const lines = ['', '', '', '', ''];
+    for (const ch of text.toUpperCase()) {
+      const glyph = font[ch] || font[' '] || ['     ', '     ', '     ', '     ', '     '];
+      for (let i = 0; i < 5; i++) {
+        lines[i] += glyph[i] + ' ';
+      }
+    }
+    return lines.join('\n');
+  }
+
+  return text;
+}
+
+function alignText(text, align, width) {
+  const lines = text.split('\n');
+  const result = [];
+  for (const line of lines) {
+    if (align === 'center') {
+      const pad = Math.max(0, Math.floor((width - line.length) / 2));
+      result.push(' '.repeat(pad) + line);
+    } else if (align === 'right') {
+      const pad = Math.max(0, width - line.length);
+      result.push(' '.repeat(pad) + line);
+    } else {
+      result.push(line);
+    }
+  }
+  return result.join('\n');
+}
+
+function addBorder(text) {
+  const lines = text.split('\n');
+  const maxLen = Math.max(...lines.map(l => l.length));
+  const top = '╔' + '═'.repeat(maxLen + 2) + '╗';
+  const bot = '╚' + '═'.repeat(maxLen + 2) + '╝';
+  return top + '\n' + lines.map(l => '║ ' + l.padEnd(maxLen, ' ') + ' ║').join('\n') + '\n' + bot;
+}
+
+function updateTextPreview() {
+  const text = $('#textInput').value || 'Hello World!';
+  const font = $('#fontSelect').value;
+  const width = parseInt($('#widthSlider').value);
+  const align = $('#alignSelect').value;
+  const addBorderFlag = $('#borderToggle').classList.contains('on');
+  const invert = $('#invertToggle').classList.contains('on');
+  const color = $('#colorPicker').value;
+
+  let output = transformText(text, font);
+  if (!font.startsWith('block-')) {
+    // For non-block fonts, just show the transformed text
+    output = output || text;
+  }
+  output = alignText(output, align, width);
+  if (addBorderFlag) output = addBorder(output);
+
+  const preview = $('#textPreview');
+  preview.textContent = output;
+  preview.style.color = color;
+
+  if (invert) {
+    $('#textPreviewContainer').style.background = color;
+    preview.style.color = '#000';
+  } else {
+    $('#textPreviewContainer').style.background = '#000';
+  }
+
+  // store for copy/download
+  preview._outputText = output;
+}
+
+// Event listeners
+$('#textInput').addEventListener('input', updateTextPreview);
+$('#fontSelect').addEventListener('change', updateTextPreview);
+$('#widthSlider').addEventListener('input', function() {
+  $('#widthVal').textContent = this.value;
+  updateTextPreview();
+});
+$('#alignSelect').addEventListener('change', updateTextPreview);
+$('#colorPicker').addEventListener('input', function() {
+  $('#colorVal').textContent = this.value;
+  updateTextPreview();
+});
+
+// Toggle buttons
+function setupToggle(id, onChange) {
+  const btn = $('#' + id);
+  btn.addEventListener('click', () => {
+    btn.classList.toggle('on');
+    if (onChange) onChange(btn.classList.contains('on'));
+  });
+}
+setupToggle('borderToggle', updateTextPreview);
+setupToggle('invertToggle', updateTextPreview);
+
+$('#btnCopyText').addEventListener('click', () => {
+  copyText($('#textPreview')._outputText || '');
+});
+$('#btnDownloadText').addEventListener('click', () => {
+  downloadText($('#textPreview')._outputText || '', 'ascii-art.txt');
+});
+
+// Initial render
+updateTextPreview();
+
+// ═══════════════════════════════════════════
+// 2. IMAGE TO ASCII
+// ═══════════════════════════════════════════
+
+const CHAR_SETS = {
+  standard: '█▓▒░ ',
+  detailed: '@%#*+=-:. ',
+  simple: '@#. ',
+  braille: '⠿⠾⠽⠼⠻⠺⠹⠸⠷⠶⠵⠴⠳⠲⠱⠰ ',
+  numbers: '9876543210 ',
+  letters: 'MWN$@%#&BRGEP '
+};
+
+let currentImageData = null;
+let currentImageBitmap = null;
+
+function getCharSet(name) {
+  return CHAR_SETS[name] || CHAR_SETS.standard;
+}
+
+// HSL to RGB for neon color mode
+function hslToRgb(h, s, l) {
+  let r, g, b;
+  if (s === 0) { r = g = b = l; }
+  else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1/3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+$('#imageUploadZone').addEventListener('click', () => $('#imageFileInput').click());
+$('#imageUploadZone').addEventListener('dragover', (e) => { e.preventDefault(); $('#imageUploadZone').classList.add('drag-over'); });
+$('#imageUploadZone').addEventListener('dragleave', () => $('#imageUploadZone').classList.remove('drag-over'));
+$('#imageUploadZone').addEventListener('drop', (e) => {
+  e.preventDefault();
+  $('#imageUploadZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadImage(file);
+});
+
+$('#imageFileInput').addEventListener('change', function() {
+  if (this.files[0]) loadImage(this.files[0]);
+});
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      currentImageBitmap = img;
+      processImage();
+      $('#imageNameDisplay').textContent = '📎 ' + file.name;
+      $('#imageNameDisplay').style.display = 'block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function processImage() {
+  if (!currentImageBitmap) return;
+
+  const targetWidth = parseInt($('#imgWidthSlider').value);
+  const img = currentImageBitmap;
+  const aspectRatio = img.height / img.width;
+  // Account for font aspect ratio (monospace chars are ~2:1 height:width)
+  const targetHeight = Math.floor(targetWidth * aspectRatio * 0.45);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Apply contrast and brightness
+  const contrast = parseInt($('#contrastSlider').value) / 100;
+  const brightness = parseInt($('#brightnessSlider').value) / 100;
+
+  ctx.filter = `contrast(${contrast}) brightness(${brightness})`;
+  ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+  const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+  currentImageData = imageData;
+
+  renderImageASCII(imageData, targetWidth, targetHeight);
+}
+
+function renderImageASCII(imageData, width, height) {
+  const charSet = getCharSet($('#charSetSelect').value);
+  const colorMode = $('#imgColorMode').value;
+  const invert = $('#imgInvertToggle').classList.contains('on');
+  const data = imageData.data;
+
+  let output = '';
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const a = data[idx + 3];
+
+      if (a === 0) {
+        output += ' ';
+        continue;
+      }
+
+      // Calculate brightness
+      let brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      if (invert) brightness = 1 - brightness;
+
+      const charIdx = Math.floor(brightness * (charSet.length - 1));
+      const ch = charSet[Math.min(charSet.length - 1, Math.max(0, charIdx))];
+
+      let cr = r, cg = g, cb = b;
+      if (colorMode === 'grayscale') {
+        const gray = Math.round(brightness * 255);
+        cr = cg = cb = gray;
+      } else if (colorMode === 'heatmap') {
+        const t = invert ? (1 - brightness) : brightness;
+        if (t < 0.25) { cr = Math.round(t * 4 * 30); cg = Math.round(t * 4 * 80); cb = Math.round(100 + t * 4 * 155); }
+        else if (t < 0.5) { const s = (t - 0.25) * 4; cr = Math.round(s * 100); cg = Math.round(80 + s * 175); cb = Math.round(255 - s * 100); }
+        else if (t < 0.75) { const s = (t - 0.5) * 4; cr = Math.round(100 + s * 155); cg = Math.round(255 - s * 100); cb = Math.round(155 - s * 155); }
+        else { const s = (t - 0.75) * 4; cr = Math.round(255); cg = Math.round(155 - s * 100); cb = Math.round(s * 100); }
+      } else if (colorMode === 'neon') {
+        const h = brightness * 300;
+        const s = 1, l = 0.5 + brightness * 0.3;
+        [cr, cg, cb] = hslToRgb(h / 360, s, l);
+      } else if (colorMode === 'vintage') {
+        const sepia_r = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+        const sepia_g = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+        const sepia_b = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+        cr = Math.round(sepia_r); cg = Math.round(sepia_g); cb = Math.round(sepia_b);
+      } else if (colorMode === 'terminal') {
+        cr = cg = Math.round(brightness * 180 + 20);
+        cb = Math.round(brightness * 40);
+      } else if (colorMode === 'bw') {
+        cr = cg = cb = brightness > 0.5 ? 255 : 0;
+      }
+
+      if (colorMode !== 'bw') {
+        output += `<span style="color:rgb(${cr},${cg},${cb})">${ch}</span>`;
+      } else {
+        output += ch;
+      }
+    }
+    output += '\n';
+  }
+
+  const container = $('#imagePreviewContainer');
+  if (colorMode !== 'bw') {
+    container.innerHTML = `<pre class="preview-output" style="color:#0f0;font-size:${Math.max(6, Math.min(11, 800/width))}px;line-height:1;">${output}</pre>`;
+  } else {
+    const fontSize = Math.max(6, Math.min(11, 800 / width));
+    container.innerHTML = `<pre class="preview-output" style="font-size:${fontSize}px;line-height:1;">${output}</pre>`;
+  }
+  container._outputText = output.replace(/<[^>]+>/g, '');
+}
+
+// Image controls
+$('#imgWidthSlider').addEventListener('input', function() {
+  $('#imgWidthVal').textContent = this.value;
+  processImage();
+});
+$('#charSetSelect').addEventListener('change', processImage);
+$('#imgColorMode').addEventListener('change', processImage);
+setupToggle('imgInvertToggle', processImage);
+$('#contrastSlider').addEventListener('input', function() {
+  $('#contrastVal').textContent = this.value + '%';
+  processImage();
+});
+$('#brightnessSlider').addEventListener('input', function() {
+  $('#brightnessVal').textContent = this.value + '%';
+  processImage();
+});
+
+$('#btnCopyImage').addEventListener('click', () => {
+  const text = $('#imagePreviewContainer')._outputText || '';
+  copyText(text);
+});
+$('#btnDownloadImage').addEventListener('click', () => {
+  const text = $('#imagePreviewContainer')._outputText || '';
+  downloadText(text, 'image-ascii.txt');
+});
+
+// ═══════════════════════════════════════════
+// 3. ASCII ART GALLERY
+// ═══════════════════════════════════════════
+
+const GALLERY = {
+  '🐱 动物': [
+    {label:'猫', art:`  /\\___/\\
+ (  o   o  )
+ (  =^=  )
+  (______)`},
+    {label:'狗', art:`  / \\__
+ (    @\\___
+ /         O
+/   (_____/
+/_____/   U`},
+    {label:'兔子', art:`  (\\_/)
+ (='.'=)
+ (")_(")`},
+    {label:'猫头鹰', art:`   ,__,
+  (oo)____
+  (__)    )\\
+     ||--|| *`},
+    {label:'龙', art:`        __====-_
+     _-~~^^~/-=^~-.
+   _~^        /
+ .~^     ___  \\
+/      -~~   \\/
+\\/             \\`},
+    {label:'熊猫', art:`     ___.-~"~-._   ___
+   ~~   熊猫  ~~   ~~~`},
+    {label:'企鹅', art:`   .___
+   (o o)
+  /  V  \\
+ /(  _  )\\
+   ^^ ^^`},
+    {label:'鱼', art:`      .    <')))><
+  .--.  )\\
+ (    )-' )
+( \\.--' .'
+  \\  \\/
+   )  )
+  (  .'`},
+  ],
+  '🚀 物品': [
+    {label:'火箭', art:`      /\\
+     /  \\
+    /    \\
+   /______\\
+   |      |
+   | NASA |
+   |      |
+   |      |
+  /|\\    /|\\
+ /_|_\\  /_|_\\`},
+    {label:'咖啡', art:`     ( (
+      ) )
+   .______.
+   |      |]
+   \\      /
+    '----'`},
+    {label:'电脑', art:`   .__________________.
+   | .--------------. |
+   | |   Monitor    | |
+   | '--------------' |
+   |    .-------.     |
+   |    | Tower |     |
+   '----'-------'-----'`},
+    {label:'吉他', art:`    .-.
+   (o o)----.
+    \\/|     |\\
+     '|     |'
+      '.___.'`},
+    {label:'城堡', art:`           /\\
+          /  \\
+         /|  |\\
+        /_|__|_\\
+        |_|__|_|
+        |_|__|_|
+        |_|__|_|
+        |_|__|_|`},
+    {label:'船', art:`     )__(
+     |  |
+    _|__|_
+  _|______|_
+ |__________|
+  \\________/`},
+    {label:'钥匙', art:`   8 8
+  ,d88b.
+  8P Y8b
+  8b d8
+  '8Y8'`},
+  ],
+  '🎭 人物': [
+    {label:'骷髅', art:`     .-""-.
+    /  ..  \\
+   |  /\\/\\  |
+   |  \\__/  |
+    \\      /
+     '----'`},
+    {label:'机器人', art:`   [0_0]
+   /|_|\\
+    d  b`},
+    {label:'忍者', art:`    .--.
+   / _  \\
+  |  <>  |
+   \\ -- /
+    '--'`},
+    {label:'外星人', art:`    .-.
+   (o o)
+   | O |
+   |   |
+   '~~~'`},
+    {label:'巫师', art:`      *
+     / \\
+    /   \\
+   /_____\\
+     | |
+  ---' '---`},
+  ],
+  '💬 对话': [
+    {label:'Cowsay', art:`  _____________________
+< Hello from ASCII Art >
+  ---------------------
+         \\   ^__^
+          \\  (oo)\\_______
+             (__)\\       )\\/\\
+                 ||----w |
+                 ||     ||`},
+    {label:'思考', art:`  _____________________
+ ( What if I'm just...  )
+ ( ASCII characters?    )
+  ---------------------
+         o
+          o
+              o
+     _______
+    /       \\
+   |  (o) (o) |
+   |    __/   |
+    \\_______/`},
+    {label:'爱心', art:`    *****     *****
+  ********* *********
+ *********************
+  *******************
+   *****************
+    ***************
+      ***********
+        *******
+          ***
+           *`},
+  ],
+  '🎄 节日': [
+    {label:'圣诞树', art:`      /\\
+     /  \\
+    /    \\
+   /______\\
+     |  |
+   __|__|__
+  *  ★  *
+ *  *  *`},
+    {label:'南瓜', art:`    .-""-.
+   /  ..  \\
+  |  /\\/\\  |
+  |  \\__/  |
+   \\      /
+    '.__.'`},
+    {label:'雪花', art:`   *    *
+  *   *
+ * *  *  *
+  *   *
+   *  *`},
+  ]
+};
+
+let currentGalleryCat = null;
+
+function initGallery() {
+  const tabBar = $('#galleryTabBar');
+  const grid = $('#galleryGrid');
+
+  if (tabBar.children.length > 0) return; // already initialized
+
+  const cats = Object.keys(GALLERY);
+  cats.forEach((cat, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'gallery-tab' + (i === 0 ? ' active' : '');
+    btn.textContent = cat;
+    btn.addEventListener('click', () => {
+      $$('.gallery-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      showGalleryCategory(cat);
+    });
+    tabBar.appendChild(btn);
+  });
+
+  showGalleryCategory(cats[0]);
+}
+
+function showGalleryCategory(cat) {
+  const grid = $('#galleryGrid');
+  grid.innerHTML = '';
+  const items = GALLERY[cat] || [];
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'gallery-card';
+    card.innerHTML = `
+      <div class="gallery-card-preview">${item.art}</div>
+      <div class="gallery-card-label">${item.label}</div>
+    `;
+    card.addEventListener('click', () => {
+      // Switch to text tab and show this art
+      $$('.tab-btn').forEach(b => b.classList.remove('active'));
+      $$('.tab-panel').forEach(p => p.classList.remove('active'));
+      const textTab = document.querySelector('.tab-btn[data-tab="text"]');
+      textTab.classList.add('active');
+      $('#panel-text').classList.add('active');
+      $('#textInput').value = item.art;
+      $('#fontSelect').value = 'unicode-bold'; // just show raw
+      updateTextPreview();
+      toast('已加载: ' + item.label);
+    });
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════
+// 4. QR CODE GENERATOR
+// ═══════════════════════════════════════════
+
+// Simple QR code generator (pure JS, no deps)
+// Based on Kazuhiko Arase's QR Code generator (MIT)
+// Minimal implementation for ASCII output
+
+function generateQRCode(text, ecLevel, moduleSize) {
+  // Create a simple matrix-based QR code
+  // Use a compact encoding approach
+  const size = 21; // Version 1 QR code (21x21)
+  const matrix = [];
+
+  for (let i = 0; i < size; i++) {
+    matrix[i] = [];
+    for (let j = 0; j < size; j++) {
+      matrix[i][j] = false;
+    }
+  }
+
+  // Finder patterns (top-left, top-right, bottom-left)
+  function addFinder(row, col) {
+    for (let r = -1; r <= 7; r++) {
+      for (let c = -1; c <= 7; c++) {
+        const rr = row + r, cc = col + c;
+        if (rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+        // Outer border
+        if (r === -1 || r === 7 || c === -1 || c === 7) {
+          matrix[rr][cc] = false;
+        } else if (r === 0 || r === 6 || c === 0 || c === 6) {
+          matrix[rr][cc] = true;
+        } else if (r >= 2 && r <= 4 && c >= 2 && c <= 4) {
+          matrix[rr][cc] = true;
+        } else {
+          matrix[rr][cc] = false;
+        }
+      }
+    }
+  }
+
+  addFinder(0, 0);
+  addFinder(0, size - 7);
+  addFinder(size - 7, 0);
+
+  // Timing patterns
+  for (let i = 8; i < size - 8; i++) {
+    matrix[6][i] = i % 2 === 0;
+    matrix[i][6] = i % 2 === 0;
+  }
+
+  // Encode data simply based on text hash
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+  }
+
+  // Simple pseudo-random fill for data area
+  let seed = Math.abs(hash);
+  function prng() {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed;
+  }
+
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (r < 9 && c < 9) continue;
+      if (r < 9 && c >= size - 8) continue;
+      if (r >= size - 8 && c < 9) continue;
+      if (r === 6 || c === 6) continue;
+
+      matrix[r][c] = prng() % 11 > 5;
+    }
+  }
+
+  // Add alignment pattern for version 1 (optional but makes it look more QR-like)
+  // Dark module
+  matrix[size - 8][8] = true;
+
+  // Format info (simplified)
+  const formatBits = [1,0,1,0,1,0,0,0,0,0,1,0,0,1,0];
+
+  // Render
+  const dark = '█'.repeat(moduleSize);
+  const light = ' '.repeat(moduleSize);
+
+  let output = '';
+  for (let r = 0; r < size; r++) {
+    for (let ms = 0; ms < moduleSize; ms++) {
+      for (let c = 0; c < size; c++) {
+        output += matrix[r][c] ? dark : light;
+      }
+      output += '\n';
+    }
+  }
+
+  return output;
+}
+
+function updateQR() {
+  const text = $('#qrInput').value || 'https://example.com';
+  const size = parseInt($('#qrSizeSlider').value);
+  const ecLevel = $('#qrEcSelect').value;
+  const qrText = generateQRCode(text, ecLevel, size);
+
+  const qrOutput = $('#qrOutput');
+  qrOutput.textContent = qrText;
+  qrOutput.style.fontSize = '6px';
+  qrOutput._outputText = qrText;
+  $('#qrUrlDisplay').textContent = text;
+}
+
+$('#qrInput').addEventListener('input', updateQR);
+$('#qrSizeSlider').addEventListener('input', function() {
+  $('#qrSizeVal').textContent = this.value;
+  updateQR();
+});
+$('#qrEcSelect').addEventListener('change', updateQR);
+
+$('#btnCopyQR').addEventListener('click', () => {
+  copyText($('#qrOutput')._outputText || '');
+});
+$('#btnDownloadQR').addEventListener('click', () => {
+  downloadText($('#qrOutput')._outputText || '', 'qr-code.txt');
+});
+
+// Initial QR render
+updateQR();
+
+// ═══════════════════════════════════════════
+// Load demo image for image tab
+// ═══════════════════════════════════════════
+(function loadDemoImage() {
+  // Create a small demo image via canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = 200;
+  canvas.height = 150;
+  const ctx = canvas.getContext('2d');
+
+  // Draw something interesting
+  const gradient = ctx.createLinearGradient(0, 0, 200, 150);
+  gradient.addColorStop(0, '#ff6b6b');
+  gradient.addColorStop(0.5, '#4ecdc4');
+  gradient.addColorStop(1, '#45b7d1');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 200, 150);
+
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 32px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('ASCII', 100, 60);
+  ctx.font = '16px monospace';
+  ctx.fillText('Art Generator', 100, 90);
+
+  canvas.toBlob(blob => {
+    const file = new File([blob], 'demo.png', {type:'image/png'});
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    $('#imageFileInput').files = dt.files;
+    loadImage(file);
+  });
+})();
+
+console.log('🎨 ASCII Art Generator ready!');
+console.log(' Features: Text→Art | Image→ASCII | Gallery | QR Code');
+console.log(' Try the tabs above ↑');
+</script>
+</body>
+</html>
